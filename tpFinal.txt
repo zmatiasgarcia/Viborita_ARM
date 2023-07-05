@@ -1,0 +1,577 @@
+.data
+mapa: .asciz "+------------------------------------------------+\n|               ****************                 |\n|               *** VIBORITA ***                 |\n|               ****************                 |\n+------------------------------------------------+\n|                                                |\n|                                                |\n|         @***                                   |\n|                                                |\n|                    M                           |\n|                                                |\n|                                                |\n|                                                |\n|                                                |\n+------------------------------------------------+\n| Puntaje:                      Nivel:           |\n+------------------------------------------------+\n"
+longitud = . - mapa 
+cls: .asciz "\x1b[H\x1b[2J"
+lencls = . - cls
+mensajeAUsuario: .ascii "Ingresar tecla:\n"
+longitudMensaje = . - mensajeAUsuario
+teclaPresionada: .ascii " "
+filaViborita: .word 7
+columnaViborita: .word 10
+mensajeGameOver: .ascii "Game Over\n"
+longitudMensajeGameOver = . - mensajeGameOver
+filaManzana: .word 9
+columnaManzana: .word 21
+puntaje: .word 0
+filaPuntaje: .word 15
+columnaPuntaje: .word 11
+filaNivel: .word 15
+columnaNivel: .word 39
+nivel: .word 0
+vectorManzanasX: .word 7, 10, 13, 13, 7, 6, 12, 5, 7, 10, 11, 8, 9
+vectorManzanasY: .word 10, 35, 25, 5, 15, 30, 31, 17, 13, 5, 23, 33, 1	
+indiceManzana: .word 0
+copiaMapa: .asciz "+------------------------------------------------+\n|               ****************                 |\n|               *** VIBORITA ***                 |\n|               ****************                 |\n+------------------------------------------------+\n|                                                |\n|                                                |\n|         @***                                   |\n|                                                |\n|                    M                           |\n|                                                |\n|                                                |\n|                                                |\n|                                                |\n+------------------------------------------------+\n| Puntaje:                      Nivel:           |\n+------------------------------------------------+\n"
+
+.text
+
+.global main
+
+escribir:
+	.fnstart
+	@Parametros:
+	@r0 = filla
+	@r1 = columna
+	@r2 = char a escribir
+
+	ldr r3, =mapa @Puntero a la matrix
+
+	@Se calcula el indice
+	mov r4, #51
+	mul r4, r0, r4
+	add r3, r4
+
+	@Se desplaza a la columna correcta
+	add r3,r1
+	strb r2, [r3]
+
+	bx lr
+
+	.fnend
+
+leer:
+	.fnstart
+
+	ldr r3, =mapa
+	mov r4, #51 @ojo tenian 50 en lugar de 51
+	mul r4, r0, r4
+	add r3, r4
+
+	add r3, r1
+
+	ldrb r2, [r3]
+
+	bx lr
+	.fnend
+
+
+leerTecla:
+	.fnstart
+	@Imprimo por pantalla la solicitud
+	mov r7, #4
+	mov r0, #1
+	ldr r2, =longitudMensaje
+	ldr r1, =mensajeAUsuario
+	swi 0
+
+	mov r7, #3
+	mov r0, #0
+	mov r2, #1 @ojo solo se lee una letra
+	ldr r1, =teclaPresionada
+	swi 0
+
+	bx lr
+	.fnend
+
+imprimirMapa:
+	
+	.fnstart
+	push {lr}
+
+	@Se limpia la pantalla
+	mov r0, #1
+	ldr r1, =cls
+	ldr r2, =lencls
+	mov r7,#4
+	swi 0
+	
+	@Se escribe el valor del puntaje
+	ldr r0, =filaPuntaje
+	ldr r0, [r0]
+
+	ldr r1, =columnaPuntaje
+	ldr r1, [r1]
+	
+	ldr r2, =puntaje
+	ldr r2, [r2]
+	add r2, #48
+	
+	bl escribir
+
+	@Se escribe el valor del nivel
+	ldr r0, =filaNivel
+	ldr r0, [r0]
+
+	ldr r1, =columnaNivel
+	ldr r1, [r1]
+
+	ldr r2, =nivel
+	ldr r2, [r2]
+	add r2, #48
+
+	bl escribir
+
+	@Se imprime el mapa
+	mov r7, #4
+	mov r0, #1
+	ldr r2, =longitud
+	ldr r1, =mapa
+	swi 0
+
+	pop {lr}
+	bx lr
+	.fnend
+
+
+
+moverIzquierda:
+
+	.fnstart
+
+	push {lr} 	
+
+	mov r1, #0 @Se inicializa r1 para que lo modifique la subrutina
+        bl chocaIzquierda
+	cmp r1, #1
+        beq gameover 
+
+	@Obtengo la fila de la cabeza
+	ldr r4, =filaViborita
+	ldr r0, [r4]  
+
+	@Obtengo la colummna de la cabeza
+	ldr r5, =columnaViborita
+	ldr r1, [r5]  
+
+	mov r2, #'*'
+
+	bl escribir
+
+	@Escribo la cabeza un espacio hacia la izquierda
+	sub r1, #1  
+	mov r2, #'@'
+
+	bl escribir
+	ldr r5, =columnaViborita
+	str r1, [r5]  @Guardo el valor que modifique  
+
+	@Se detecta cuando choca con la manzana
+	mov r1, #0
+	bl chocaManzana
+	cmp r1, #1
+	beq sumarPuntaje
+
+	pop {lr}  
+	bx lr
+	.fnend
+
+
+moverDerecha:
+	.fnstart
+
+	push {lr}  	
+
+	mov r1, #0 
+        bl chocaDerecha
+	cmp r1, #1
+        beq gameover 
+
+	@Obtengo la fila de la cabeza
+	ldr r4, =filaViborita
+	ldr r0, [r4]  
+
+	@Obtengo la colummna de la cabeza
+	ldr r5, =columnaViborita
+	ldr r1, [r5]  
+
+	mov r2, #'*'
+
+	bl escribir
+
+	@Escribo la cabeza un espacio hacia la izquierda
+	add r1, #1  
+	mov r2, #'@'
+
+	bl escribir
+	ldr r5, =columnaViborita
+	str r1, [r5]  @Guardo el valor que modifique  
+
+	mov r1, #0
+	bl chocaManzana
+	cmp r1, #1
+	beq sumarPuntaje
+
+	pop {lr} 
+	bx lr
+	.fnend
+
+moverArriba:
+	.fnstart
+
+	push {lr}  
+
+	mov r1, #0
+        bl chocaArriba
+	cmp r1, #1
+        beq gameover 
+
+	@Obtengo la fila de la cabeza
+	ldr r4, =filaViborita
+	ldr r0, [r4]  
+
+	@Obtengo la colummna de la cabeza
+	ldr r5, =columnaViborita
+	ldr r1, [r5]  
+
+	mov r2, #'*'
+
+	bl escribir
+
+	@Escribo la cabeza un espacio hacia la izquierda
+	sub r0, #1 
+	mov r2, #'@'
+
+	bl escribir
+	ldr r4, =filaViborita
+	str r0, [r4]  @Guardo el valor que modifique  
+
+	mov r1, #0
+	bl chocaManzana
+	cmp r1, #1
+	beq sumarPuntaje
+
+	pop {lr} 
+	bx lr
+	.fnend
+
+moverAbajo:
+	.fnstart
+
+	push {lr}  	
+
+	mov r1, #0
+        bl chocaAbajo
+	cmp r1, #1
+        beq gameover 
+
+	@Obtengo la fila de la cabeza
+	ldr r4, =filaViborita
+	ldr r0, [r4]  
+
+	@Obtengo la colummna de la cabeza
+	ldr r5, =columnaViborita
+	ldr r1, [r5]  
+
+	mov r2, #'*'
+
+	bl escribir
+
+	@Escribo la cabeza un espacio hacia la izquierda
+	add r0, #1 
+	mov r2, #'@'
+
+	bl escribir
+	ldr r4, =filaViborita
+	str r0, [r4]  @Guardo el valor que modifique  
+
+	mov r1, #0
+	bl chocaManzana
+	cmp r1, #1
+	beq sumarPuntaje
+
+	pop {lr}  
+	bx lr
+	.fnend
+
+
+chocaIzquierda:
+	.fnstart
+
+	push {lr}
+	ldr r4, =filaViborita
+	ldr r0, [r4]
+
+	ldr r5, =columnaViborita
+	ldr r1, [r5]
+
+	sub r1, #1 
+
+	bl leer
+	mov r1, #0
+
+	cmp r2, #'*'
+	beq choco	
+
+	cmp r2, #'|'
+	beq choco
+	b nochoco
+
+chocaDerecha:
+	push {lr}
+	ldr r4, =filaViborita
+	ldr r0, [r4]
+
+	ldr r5, =columnaViborita
+	ldr r1, [r5]
+
+	add r1, #1 
+
+	bl leer
+	mov r1, #0
+
+	cmp r2, #'*'
+	beq choco
+
+	cmp r2, #'|'
+	beq choco
+	b nochoco
+
+chocaArriba:
+	push {lr}
+	ldr r4, =filaViborita
+	ldr r0, [r4]
+
+	ldr r5, =columnaViborita
+	ldr r1, [r5]
+
+	sub r0, #1 
+
+	bl leer
+	mov r1, #0
+
+	cmp r2, #'*'
+	beq choco
+
+	cmp r2, #'-'
+	beq choco
+	b nochoco
+
+chocaAbajo:
+	push {lr}
+	ldr r4, =filaViborita
+	ldr r0, [r4]
+
+	ldr r5, =columnaViborita
+	ldr r1, [r5]
+
+	add r0, #1 
+
+	bl leer
+	mov r1, #0
+
+	cmp r2, #'*'
+	beq choco
+
+	cmp r2, #'-'
+	beq choco
+	b nochoco
+
+choco:
+	mov r1, #1
+
+nochoco:	     
+        pop {lr}
+	bx lr
+	.fnend
+
+moverViborita:
+	.fnstart
+	push {lr}  
+
+	ldr r3, =teclaPresionada
+	ldrb r3, [r3]
+
+	cmp r3, #'a'
+	beq moverIzquierda
+
+	cmp r3, #'d'
+	beq moverDerecha
+
+	cmp r3, #'w'
+	beq moverArriba
+
+	cmp r3, #'s'
+	beq moverAbajo
+          
+        pop {lr}
+	bx lr
+
+
+gameover:
+	@Borra la pantalla
+	mov r0, #1
+	ldr r1, =cls
+	ldr r2, =lencls
+	mov r7,#4
+	swi 0
+
+        @Se imprime un "Game Over"
+	mov r7, #4
+	mov r0, #1
+	ldr r2, =longitudMensajeGameOver
+	ldr r1, =mensajeGameOver
+	swi 0
+        b finPrograma 
+
+finPrograma:
+	mov r7, #1
+	swi 0
+	.fnend
+
+chocaManzana:
+	.fnstart
+	push {lr}
+	ldr r4, =filaViborita
+	ldr r0, [r4]
+
+	ldr r5, =columnaViborita
+	ldr r2, [r5]
+
+	ldr r4, =filaManzana
+	ldr r3, [r4]
+	
+	ldr r5, =columnaManzana
+	ldr r4, [r5]
+
+	sub r0, r0, r3
+	sub r2, r2, r4
+	
+	@Se compara que las filas y las columnas sean iguales
+	cmp r0, #0
+	beq compararColumnas
+		
+	pop {lr}
+	bx lr
+
+compararColumnas:
+	cmp r2, #0
+	beq choco
+	pop {lr}
+	bx lr
+	.fnend
+
+sumarPuntaje:
+	.fnstart
+	push {lr}
+
+	ldr r1, =puntaje
+	ldr r2, [r1]
+
+	add r2, #1
+
+	str r2, [r1]
+
+	bl encontrarEspacioManzana
+
+	pop {lr}
+	bx lr
+		
+
+encontrarEspacioManzana:
+
+	ldr r3, =indiceManzana
+	ldr r3, [r3]	
+
+	ldr r0, =vectorManzanasX
+	add r0, r3
+	ldr r0, [r0]
+
+	ldr r1, =vectorManzanasY
+	add r1, r3
+	ldr r1, [r1]
+
+	bl leer
+
+	ldr r4, =indiceManzana
+	ldr r3, [r4]
+	add r3, #4
+	str r3, [r4]		
+
+	cmp r2, #32
+	beq generarManzana
+	b encontrarEspacioManzana	
+
+generarManzana:
+	ldr r3, =filaManzana
+	str r0, [r3]
+
+	ldr r3, =columnaManzana
+	str r1, [r3]
+
+	mov r2, #'M'
+	bl escribir
+
+	pop {lr}
+	bx lr
+
+	.fnend
+
+detectarCambioNivel:
+	ldr r0, =puntaje
+	ldr r0, [r0]
+
+	cmp r0, #9
+	beq cambiarNivel
+
+	bx lr
+	
+cambiarNivel:
+	
+	ldr r0, =copiaMapa
+	ldr r0, [r0]
+	ldr r1, =mapa
+	str r0, [r1]
+
+	ldr r0, =puntaje
+	mov r1, #0
+	str r1, [r0]
+
+	ldr r0, =indiceManzana
+	mov r1, #0
+	str r1, [r0]
+
+	ldr r0, =filaViborita
+	mov r1, #7
+	str r1, [r0]
+
+	ldr r0, =columnaViborita
+	mov r1, #10
+	str r1, [r0]
+	
+	ldr r0, =nivel
+	ldr r1, [r0]
+	add r1, #1
+	str r1, [r0]
+
+	bx lr
+
+
+
+.global main     
+main:
+
+
+	
+cicloPrincipal:
+	bl imprimirMapa
+	bl leerTecla
+	bl moverViborita
+	bl detectarCambioNivel
+
+	b cicloPrincipal
+
+
+
+
+
+
